@@ -8,11 +8,59 @@ const bot = new TelegramBot(config.BOT_TOKEN, { polling: true });
 bot.on("message", (msg) => {
   const id = msg.chat.id;
 
+  console.log("this msgid:" + msg.message_id);
+
   // bot.sendMessage(id, `메아리 : ${msg.text}`);
 });
 
-bot.onText(/\/출근/, (msg, match) => {
+bot.onText(/\/start/, (msg, match) => {
   const chatId = msg.chat.id;
+
+  // bot.sendMessage(chatId, "사번을 입력하세요");
+
+  const opts = {
+    reply_markup: {
+      text: "출근처리",
+      callback_data: "gotowork",
+    },
+  };
+
+  bot.sendMessage(chatId, "사번을 입력하세요", opts);
+});
+
+bot.onText(/\/t/, (msg, match) => {
+  const chatId = msg.chat.id;
+
+  const opts = {
+    reply_markup: {
+      input_message_content: [
+        [
+          {
+            text: "출근처리",
+            callback_data: "gotowork",
+          },
+          {
+            text: "외근",
+            callback_data: "outWork",
+          },
+          {
+            text: "출장",
+            callback_data: "businessTrip",
+          },
+          {
+            text: "재택",
+            callback_data: "workInHouse",
+          },
+        ],
+      ],
+    },
+  };
+
+  bot.sendMessage(chatId, "test1", opts);
+});
+
+bot.onText(/\/출근/, (msg, match) => {
+  const chatId = msg.btnchat.id;
 
   const opts = {
     reply_markup: {
@@ -82,9 +130,11 @@ bot.on("callback_query", function onCallbackQuery(callbackQuery) {
 bot.onText(/\/btn/, function onLoveText(msg) {
   const opts = {
     reply_to_message_id: msg.message_id,
-    reply_markup: JSON.stringify({
-      keyboard: [["Yes"], ["No"]],
-    }),
+    reply_markup: {
+      resize_keyboard: true,
+      one_time_keyboard: true,
+      keyboard: [["yes"], ["no"]],
+    },
   };
   bot.sendMessage(msg.chat.id, "Click Button", opts);
 });
