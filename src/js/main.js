@@ -1,6 +1,8 @@
 const TelegramBot = require("node-telegram-bot-api");
-const config = require("./config.json");
-const constants = require("./constants.json");
+const config = require("../../config.json");
+// const models = require("./database/models");
+const constants = require("../../constants.json");
+const { dbfunc } = require("./sequelize.js");
 
 const bot = new TelegramBot(config.BOT_TOKEN, { polling: true });
 
@@ -8,9 +10,7 @@ const bot = new TelegramBot(config.BOT_TOKEN, { polling: true });
 bot.on("message", (msg) => {
   const id = msg.chat.id;
 
-  console.log("this msgid:" + msg.message_id);
-
-  // bot.sendMessage(id, `메아리 : ${msg.text}`);
+  console.log(`this msgid:${msg.message_id}, text:${msg.text}`);
 });
 
 bot.onText(/\/start/, (msg, match) => {
@@ -60,7 +60,7 @@ bot.onText(/\/t/, (msg, match) => {
 });
 
 bot.onText(/\/출근/, (msg, match) => {
-  const chatId = msg.btnchat.id;
+  const chatId = msg.chat.id;
 
   const opts = {
     reply_markup: {
@@ -122,6 +122,8 @@ bot.on("callback_query", function onCallbackQuery(callbackQuery) {
     text = "즐거운시간 보내세요!!";
   } else if (action === "study") {
     text = "열공하세요!!";
+  } else {
+    text = "기타 리턴값";
   }
 
   bot.editMessageText(text, opts);
@@ -129,11 +131,46 @@ bot.on("callback_query", function onCallbackQuery(callbackQuery) {
 
 bot.onText(/\/btn/, function onLoveText(msg) {
   const opts = {
+    // reply_to_message_id: msg.message_id,
+    reply_markup: {
+      // resize_keyboard: true,
+      // one_time_keyboard: true,
+      keyboard: [
+        [
+          {
+            text: "/연차",
+            callback_data: "off",
+          },
+        ],
+        [
+          {
+            text: "/교육",
+            callback_data: "study",
+          },
+        ],
+        [
+          {
+            text: "/출근",
+            callback_data: "qq",
+          },
+          {
+            text: "/퇴근",
+            callback_data: "ww",
+          },
+        ],
+      ],
+    },
+  };
+  bot.sendMessage(msg.chat.id, "Click Button", opts);
+});
+
+bot.onText(/\/btn2/, function onLoveText(msg) {
+  const opts = {
     reply_to_message_id: msg.message_id,
     reply_markup: {
       resize_keyboard: true,
       one_time_keyboard: true,
-      keyboard: [["yes"], ["no"]],
+      keyboard: [["111"], ["222"]],
     },
   };
   bot.sendMessage(msg.chat.id, "Click Button", opts);
@@ -149,7 +186,7 @@ bot.onText(/\/audio/, function onAudioText(msg) {
 
 bot.onText(/\/echo (.+)/, (msg, match) => {
   const chatId = msg.chat.id;
-  const resp = "꺄악: " + match[1];
-  // 식별된 "msg"는 보내온 채팅방('chatId')에게 앵무새처럼 재전송한다 ("꺄악: 'msg'")
+  const resp = "메아리: " + match[1];
+
   bot.sendMessage(chatId, resp);
 });
