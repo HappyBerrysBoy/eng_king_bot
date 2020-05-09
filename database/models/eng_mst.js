@@ -7,6 +7,7 @@ module.exports = (sequelize, DataTypes) => {
       desc: DataTypes.STRING,
       type: DataTypes.STRING,
       kind: DataTypes.STRING,
+      inputPsn: DataTypes.STRING,
       global: DataTypes.STRING,
     },
     {}

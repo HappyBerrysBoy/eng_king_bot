@@ -1,1 +1,10 @@
-{ "BOT_NAME": "movex_team_notice_bot" }
+{
+  "BOT_NAME": "movex_team_notice_bot",
+  "STATUS": {
+    "DEFAULT": "",
+    "INSERT": "C",
+    "READ": "R",
+    "UPDATE": "U",
+    "DELETE": "D"
+  }
+}
