@@ -173,7 +173,8 @@ const telBot = () => {
         opts
       );
     } else {
-      console.log(targetUser);
+      targetUser.STATUS = constants.STATUS.DEFAULT;
+      await writeConfigFile(userfile, userConfig);
     }
 
     const opts = {
