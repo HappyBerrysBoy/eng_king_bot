@@ -19,10 +19,25 @@ function getUserFilePath(id) {
   return userpath + id + ".json";
 }
 
+async function chkFile(chatId) {
+  const updateStatus = await setUserStatus(
+    getUserFilePath(chatId),
+    chatId,
+    null
+  );
+
+  if (!updateStatus) {
+    bot.sendMessage(chatId, texts.noAccount);
+    return false;
+  }
+
+  return true;
+}
+
 async function setUserStatus(path, id, status) {
   const userConfig = await readConfigFile(path);
 
-  if (!userConfig) {
+  if (!userConfig || userConfig.result === "error") {
     return false;
   }
 
@@ -48,6 +63,7 @@ async function registerWord(msg) {
     bot.sendMessage(chatId, texts.registerWord, opts);
   } else {
     bot.sendMessage(chatId, texts.noAccount, opts);
+    return;
   }
 }
 
@@ -62,17 +78,117 @@ async function readWord(msg) {
   );
 
   if (updateStatus) {
-    const list = await dbfunc.readItem({ inputPsn: chatId });
+    const list = await dbfunc.readItem({
+      inputPsn: chatId,
+      category: updateStatus.CAT,
+    });
 
     let retStr = "<b><u>단어 조회 결과</u></b>\r\n\r\n";
 
     list.forEach((i, idx) => {
       retStr += `${idx + 1}. ${i.name}\r\n- ${i.desc}\r\n`;
     });
+
+    await writeConfigFile(getUserFilePath(chatId), initUser());
     bot.sendMessage(chatId, retStr, opts);
   } else {
     bot.sendMessage(chatId, texts.noAccount, opts);
+    return;
   }
+}
+
+async function exam(msg) {
+  const chatId = msg.chat.id;
+  const opts = { parse_mode: "HTML" };
+
+  const updateStatus = await setUserStatus(
+    getUserFilePath(chatId),
+    chatId,
+    null
+  );
+
+  if (updateStatus) {
+    const list = await dbfunc.readItem({
+      inputPsn: chatId,
+      category: updateStatus.CAT,
+    });
+
+    let retStr = `<b><u>문제출제 시작(총문제 ${list.length}개)</u></b>
+  출제되는 문항에 답을 쓰시고 메세지를 전송하면 다음 문제가 출제됩니다.`;
+
+    updateStatus.STATUS = constants.STATUS.IS_EXAMING;
+    updateStatus.EXAM = list;
+
+    await writeConfigFile(getUserFilePath(chatId), updateStatus);
+    bot.sendMessage(chatId, retStr, opts);
+    issueExam(msg);
+  } else {
+    bot.sendMessage(chatId, texts.noAccount, opts);
+    return;
+  }
+}
+
+async function issueExam(msg) {
+  const chatId = msg.chat.id;
+  const opts = { parse_mode: "HTML" };
+
+  const updateStatus = await setUserStatus(
+    getUserFilePath(chatId),
+    chatId,
+    null
+  );
+
+  if (!updateStatus) {
+    bot.sendMessage(chatId, texts.noAccount, opts);
+    return;
+  }
+
+  if (updateStatus.EXAM.length == 0) {
+    bot.sendMessage(chatId, "시험이 종료되었습니다. 수고하셨습니다.", opts);
+    await writeConfigFile(getUserFilePath(chatId), initUser());
+  } else {
+    const curr = updateStatus.EXAM.shift();
+    await writeConfigFile(getUserFilePath(chatId), updateStatus);
+
+    bot.sendMessage(chatId, `문제:${curr.name}`, opts);
+  }
+}
+
+function initMenu(chatId) {
+  const opts = {
+    parse_mode: "HTML",
+    reply_markup: {
+      one_time_keyboard: true,
+      keyboard: [
+        [
+          {
+            text: "/단어등록",
+          },
+          {
+            text: "/단어조회",
+          },
+        ],
+        [
+          {
+            text: "/단어수정",
+          },
+          {
+            text: "/단어삭제",
+          },
+        ],
+        [
+          {
+            text: "/랜덤문제출제",
+          },
+          {
+            text: "/초기메뉴",
+          },
+        ],
+      ],
+    },
+  };
+
+  bot.sendMessage(chatId, texts.welcome, opts);
 }
 
 const telBot = () => {
@@ -103,7 +219,7 @@ const telBot = () => {
         const item = {
           name: wordDesc[0].trim(),
           desc: wordDesc[1].trim(),
-          cat: userConfig.CAT,
+          category: userConfig.CAT,
           type: "WORD",
           kind: "WORD",
           inputPsn: chatId + "",
@@ -116,7 +232,9 @@ const telBot = () => {
 
         bot.sendMessage(chatId, texts.finishRegister);
       }
-    } else if (userConfig.STATUS === constants.STATUS.READ) {
+    } else if (userConfig.STATUS === constants.STATUS.IS_EXAMING) {
+      // 시험문제 출제중
+      issueExam(msg);
     } else if (userConfig.STATUS === constants.STATUS.NEWCATEGORY) {
       if (msg.text.trim().length == 0) return;
       if (msg.text.trim().length > 99) {
@@ -141,7 +259,6 @@ const telBot = () => {
 
   bot.onText(/\/start/, async (msg, match) => {
     const chatId = msg.chat.id;
-
     const userConfig = await readConfigFile(getUserFilePath(chatId));
 
     if (!userConfig) {
@@ -153,85 +270,141 @@ const telBot = () => {
       await writeConfigFile(getUserFilePath(chatId), userConfig);
     }
 
-    const opts = {
-      parse_mode: "HTML",
-      reply_to_message_id: msg.message_id,
-      reply_markup: {
-        resize_keyboard: false,
-        one_time_keyboard: true,
-        keyboard: [
-          [
-            {
-              text: "/단어등록",
-            },
-            {
-              text: "/단어조회",
-            },
-          ],
-          [
-            {
-              text: "/단어수정",
-            },
-            {
-              text: "/단어삭제",
-            },
-          ],
-          [
-            {
-              text: "/랜덤문제출제",
-            },
-            {
-              text: "/생각중",
-            },
-          ],
-        ],
-      },
-    };
-
-    bot.sendMessage(chatId, texts.welcome, opts);
+    initMenu(chatId);
   });
 
   bot.onText(/\/단어등록/, async (msg, match) => {
     const chatId = msg.chat.id;
+
+    const userConfig = await readConfigFile(getUserFilePath(chatId));
+
+    if (!userConfig || userConfig.result === "error") {
+      bot.sendMessage(chatId, texts.noAccount);
+      return;
+    }
+
     const catList = await dbfunc.getCategory(chatId);
 
-    const btnArray = [{ text: "새카테고리", callback_data: "newcategory" }];
+    const btnArray = [[{ text: "새카테고리", callback_data: "newcategory" }]];
 
     for (let i = 0; i < catList.length; i++) {
-      btnArray.push({
-        text: catList[i].category,
-        callback_data: catList[i].category,
-      });
+      btnArray.push([
+        {
+          text: catList[i].category,
+          callback_data: catList[i].category,
+        },
+      ]);
     }
 
     const opts = {
       parse_mode: "HTML",
       reply_markup: {
-        inline_keyboard: [btnArray],
+        inline_keyboard: btnArray,
       },
     };
 
-    bot.sendMessage(chatId, texts.selectCategory, opts);
+    userConfig.STATUS = constants.STATUS.SEL_CAT_FOR_INSERT;
+    await writeConfigFile(getUserFilePath(chatId), userConfig);
+
+    bot.sendMessage(chatId, texts.selectCategoryForInsert, opts);
   });
 
   bot.onText(/\/단어조회/, async (msg, match) => {
-    readWord(msg);
+    const chatId = msg.chat.id;
+
+    const userConfig = await readConfigFile(getUserFilePath(chatId));
+
+    if (!userConfig || userConfig.result === "error") {
+      bot.sendMessage(chatId, texts.noAccount);
+      return;
+    }
+
+    const catList = await dbfunc.getCategory(chatId);
+    let btnArray = [];
+
+    for (let i = 0; i < catList.length; i++) {
+      btnArray.push([
+        {
+          text: catList[i].category,
+          callback_data: catList[i].category,
+        },
+      ]);
+    }
+
+    const opts = {
+      parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: btnArray,
+      },
+    };
+
+    userConfig.STATUS = constants.STATUS.SEL_CAT_FOR_SELECT;
+    await writeConfigFile(getUserFilePath(chatId), userConfig);
+
+    bot.sendMessage(chatId, texts.selectCategoryForSelect, opts);
   });
 
   bot.onText(/\/단어수정/, async (msg, match) => {
+    const chk = await chkFile(msg.chat.id);
+    if (!chk) return;
+
     bot.sendMessage(msg.chat.id, "준비중입니다.");
   });
 
   bot.onText(/\/단어삭제/, async (msg, match) => {
+    const chk = await chkFile(msg.chat.id);
+    if (!chk) return;
+
     bot.sendMessage(msg.chat.id, "준비중입니다.");
   });
 
   bot.onText(/\/랜덤문제출제/, async (msg, match) => {
-    bot.sendMessage(msg.chat.id, "준비중입니다.");
+    const chatId = msg.chat.id;
+
+    const userConfig = await readConfigFile(getUserFilePath(chatId));
+
+    if (!userConfig || userConfig.result === "error") {
+      bot.sendMessage(chatId, texts.noAccount);
+      return;
+    }
+
+    const catList = await dbfunc.getCategory(chatId);
+    let btnArray = [];
+
+    for (let i = 0; i < catList.length; i++) {
+      btnArray.push([
+        {
+          text: catList[i].category,
+          callback_data: catList[i].category,
+        },
+      ]);
+    }
+
+    const opts = {
+      parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: btnArray,
+      },
+    };
+
+    userConfig.STATUS = constants.STATUS.SEL_CAT_FOR_EXAM;
+    await writeConfigFile(getUserFilePath(chatId), userConfig);
+
+    bot.sendMessage(chatId, texts.selectCategoryForExam, opts);
   });
 
-  bot.onText(/\/생각중/, async (msg, match) => {
-    bot.sendMessage(msg.chat.id, "준비중입니다.");
+  bot.onText(/\/초기메뉴/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const userConfig = await readConfigFile(getUserFilePath(chatId));
+
+    if (!userConfig || userConfig.result === "error") {
+      bot.sendMessage(chatId, texts.noAccount);
+      return;
+    }
+
+    await writeConfigFile(getUserFilePath(chatId), initUser());
+
+    initMenu(chatId);
   });
 
   // Handle callback queries
@@ -244,149 +417,47 @@ const telBot = () => {
       message_id: msg.message_id,
       parse_mode: "HTML",
     };
-    let text;
+    const userConfig = await setUserStatus(
+      getUserFilePath(chatId),
+      chatId,
+      null
+    );
+
+    if (!userConfig) {
+      bot.sendMessage(chatId, texts.noAccount, opts);
+      return;
+    }
 
     if (action === "registerWord") {
       registerWord(msg);
     } else if (action === "newcategory") {
-      const updateStatus = await setUserStatus(
-        getUserFilePath(chatId),
-        chatId,
-        constants.STATUS.NEWCATEGORY
-      );
+      userConfig.STATUS = constants.STATUS.NEWCATEGORY;
+      await writeConfigFile(getUserFilePath(chatId), userConfig);
 
-      if (updateStatus) {
-        bot.editMessageText("새 카테고리명을 입력하세요.\r\n ex)eng", opts);
-      } else {
-        bot.editMessageText(texts.noAccount, opts);
-      }
-    } else if (action === "gotowork") {
-      text = "오늘도 즐거운 하루!";
-      bot.editMessageText(text, opts);
-    } else if (action === "outWork") {
-      text = "고생하세요!!";
-      bot.editMessageText(text, opts);
-    } else if (action === "businessTrip") {
-      text = "차조심!!";
-      bot.editMessageText(text, opts);
-    } else if (action === "workInHouse") {
-      text = "밥잘챙겨드세요!!";
-      bot.editMessageText(text, opts);
-    } else if (action === "off") {
-      text = "즐거운시간 보내세요!!";
-      bot.editMessageText(text, opts);
-    } else if (action === "study") {
-      text = "열공하세요!!";
-      bot.editMessageText(text, opts);
+      bot.editMessageText("새 카테고리명을 입력하세요.\r\n ex)eng", opts);
     } else {
-      text = "기타 리턴값";
-      bot.editMessageText(text, opts);
+      if (userConfig.STATUS === constants.STATUS.SEL_CAT_FOR_INSERT) {
+        userConfig.CAT = action;
+        await writeConfigFile(getUserFilePath(chatId), userConfig);
+
+        registerWord(msg);
+        bot.editMessageText(`선택된 카테고리:${action}`, opts);
+      } else if (userConfig.STATUS === constants.STATUS.SEL_CAT_FOR_SELECT) {
+        userConfig.CAT = action;
+        await writeConfigFile(getUserFilePath(chatId), userConfig);
+
+        readWord(msg);
+        bot.editMessageText(`선택된 카테고리:${action}`, opts);
+      } else if (userConfig.STATUS === constants.STATUS.SEL_CAT_FOR_EXAM) {
+        userConfig.CAT = action;
+        await writeConfigFile(getUserFilePath(chatId), userConfig);
+
+        exam(msg);
+        bot.editMessageText(`선택된 카테고리:${action}`, opts);
+      } else {
+        bot.editMessageText("기타 리턴값", opts);
+      }
     }
-  });
-
-  bot.onText(/\/btn/, function onLoveText(msg) {
-    const opts = {
-      reply_to_message_id: msg.message_id,
-      reply_markup: {
-        resize_keyboard: false,
-        one_time_keyboard: true,
-        selective: true,
-        keyboard: [
-          [
-            {
-              text: "/연차",
-              callback_data: "off",
-            },
-          ],
-          [
-            {
-              text: "/교육",
-              callback_data: "study",
-            },
-          ],
-          [
-            {
-              text: "/출근",
-              callback_data: "qq",
-            },
-            {
-              text: "/퇴근",
-              callback_data: "ww",
-            },
-          ],
-        ],
-      },
-    };
-    bot.sendMessage(msg.chat.id, "메뉴를 선택해주세요", opts);
-  });
-
-  bot.onText(/\/btn2/, function onLoveText(msg) {
-    const opts = {
-      reply_to_message_id: msg.message_id,
-      reply_markup: {
-        resize_keyboard: true,
-        one_time_keyboard: true,
-        keyboard: [["111"], ["222"]],
-      },
-    };
-    // bot.sendMessage(msg.chat.id, "btn2", opts);
-  });
-
-  // Matches /audio
-  bot.onText(/audio/, function onAudioText(msg) {
-    // From HTTP request
-    const url =
-      "https://upload.wikimedia.org/wikipedia/commons/c/c8/Example.ogg";
-    const audio = request(url);
-    bot.sendAudio(msg.chat.id, audio);
-  });
-
-  bot.onText(/\/echo (.+)/, (msg, match) => {
-    const chatId = msg.chat.id;
-    const resp = "메아리: " + match[1];
-
-    bot.sendMessage(chatId, resp);
-  });
-
-  bot.onText(/\/출근/, (msg, match) => {
-    const chatId = msg.btnchat.id;
-
-    const opts = {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: "출근처리",
-              callback_data: "gotowork",
-            },
-            {
-              text: "외근",
-              callback_data: "outWork",
-            },
-            {
-              text: "출장",
-              callback_data: "businessTrip",
-            },
-            {
-              text: "재택",
-              callback_data: "workInHouse",
-            },
-          ],
-          [
-            {
-              text: "연차",
-              callback_data: "off",
-            },
-            {
-              text: "교육",
-              callback_data: "study",
-            },
-          ],
-        ],
-      },
-    };
-
-    bot.sendMessage(chatId, "근태관리", opts);
   });
 };
 

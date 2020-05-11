@@ -28,7 +28,9 @@ const texts = {
   `,
   notFitFormat: `입력된 형태가 인식되지 않습니다. <b>단어-설명</b> 형태로 입력 되었는지 확인바랍니다.`,
   finishRegister: `등록이 완료되었습니다.`,
-  selectCategory: `<b><u>등록할 카테고리를 선택하세요</u></b>.
+  selectCategoryForSelect: `조회할 카테고리를 선택하세요.`,
+  selectCategoryForExam: `문제를 출제할 카테고리를 선택하세요.`,
+  selectCategoryForInsert: `<b><u>등록할 카테고리를 선택하세요</u></b>.
 
   최초로 입력하는 경우 "새카테고리" 선택 후 입력해주세요.`,
 };

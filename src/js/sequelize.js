@@ -22,7 +22,7 @@ const dbfunc = {
     try {
       const list = await models.eng_mst
         .findAll({
-          where: { inputPsn: param.inputPsn },
+          where: { inputPsn: param.inputPsn, category: param.category },
         })
         .then((result) => {
           return result;

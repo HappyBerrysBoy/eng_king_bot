@@ -24,8 +24,8 @@ function readConfigFile(filepath) {
       return r;
     })
     .catch((e) => {
-      e.result = "error";
-      return e;
+      console.log(e);
+      return null;
     });
 }
 
@@ -56,7 +56,8 @@ function getUserConfig(filepath, id) {
     })
     .catch((e) => {
       e.result = "error";
-      return e;
+      console.log(e);
+      return null;
     });
 }
 
@@ -69,7 +70,15 @@ function writeConfigFile(filepath, json) {
       }
       resolve();
     });
-  });
+  })
+    .then((r) => {
+      return r;
+    })
+    .catch((e) => {
+      e.result = "error";
+      console.log(e);
+      return null;
+    });
 }
 
 function getDate(addHours) {
@@ -82,7 +91,7 @@ function getDate(addHours) {
 }
 
 function initUser() {
-  return { STATUS: "", CAT: "" };
+  return { STATUS: "", CAT: "", EXAM: [] };
 }
 
 module.exports = {
