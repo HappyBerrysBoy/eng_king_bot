@@ -82,7 +82,7 @@ function getDate(addHours) {
 }
 
 function initUser() {
-  return { STATUS: "" };
+  return { STATUS: "", CAT: "" };
 }
 
 module.exports = {

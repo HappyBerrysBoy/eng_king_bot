@@ -5,6 +5,7 @@
     "INSERT": "C",
     "READ": "R",
     "UPDATE": "U",
-    "DELETE": "D"
+    "DELETE": "D",
+    "NEWCATEGORY": "NEW"
   }
 }

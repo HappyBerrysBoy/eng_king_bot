@@ -1,5 +1,6 @@
 const date = require("date-and-time");
 const models = require("../../database/models");
+const sequelize = require("sequelize");
 
 const dbfunc = {
   insertItem: async (param) => {
@@ -7,6 +8,7 @@ const dbfunc = {
       .create({
         name: param.name,
         desc: param.desc,
+        category: param.category,
         type: param.type,
         kind: param.kind,
         inputPsn: param.inputPsn,
@@ -28,7 +30,29 @@ const dbfunc = {
 
       return list;
     } catch (e) {
-      res.json({ error: e.message });
+      return [];
+    }
+  },
+  getCategory: async (id) => {
+    try {
+      const list = await models.sequelize
+        .query(
+          `
+          SELECT
+          DISTINCT category
+        FROM
+          eng_msts
+        WHERE
+          inputPsn = ${id};
+    `
+        )
+        .then((r) => {
+          return r[0];
+        });
+
+      return list;
+    } catch (e) {
+      return [];
     }
   },
 };
