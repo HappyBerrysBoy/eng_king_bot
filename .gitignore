@@ -116,4 +116,4 @@ dist
 
 # personal data
 config.json
-users/
+users/*.json
