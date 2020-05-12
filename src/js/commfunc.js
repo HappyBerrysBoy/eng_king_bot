@@ -91,7 +91,14 @@ function getDate(addHours) {
 }
 
 function initUser() {
-  return { STATUS: "", CAT: "", EXAM: [] };
+  return {
+    STATUS: "",
+    CAT: "",
+    EXAM: [],
+    CURR_EXAM: {},
+    TTL_EXAM_COUNT: 0,
+    CURR_EXAM_NUM: 0,
+  };
 }
 
 module.exports = {

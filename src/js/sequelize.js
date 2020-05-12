@@ -33,6 +33,31 @@ const dbfunc = {
       return [];
     }
   },
+  readRandomItem: async (param) => {
+    try {
+      const list = await models.sequelize
+        .query(
+          `
+        SELECT
+          *
+        FROM
+          eng_msts
+        WHERE
+          category = '${param.category}'
+          AND inputPsn = ${param.inputPsn}
+        ORDER BY
+          rand();
+    `
+        )
+        .then((r) => {
+          return r[0];
+        });
+
+      return list;
+    } catch (e) {
+      return [];
+    }
+  },
   getCategory: async (id) => {
     try {
       const list = await models.sequelize

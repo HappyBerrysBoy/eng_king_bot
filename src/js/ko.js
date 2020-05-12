@@ -3,6 +3,8 @@ const texts = {
   errormsg: `Something is wrong. Please contact the developer.`,
   catToLong: `카테고리명이 너무 깁니다. 100자를 넘으면 안됩니다. 다시 입력하여 주십시오.`,
   catRegOk: `카테고리 등록이 완료되었습니다.`,
+  examExplaination: `<b><u>문제출제 시작(총문제 {{count}}개)</u></b>
+  출제되는 문항에 답을 쓰시고 메세지를 전송하면 다음 문제가 출제됩니다.`,
   help: `<b><u>English King Bot을 이용해주셔서 감사합니다.</u></b>
   아래와 같은 명령어를 사용하실 수 있습니다.
     

@@ -34,6 +34,19 @@ async function chkFile(chatId) {
   return true;
 }
 
+async function addCategoryList(chatId, array) {
+  const catList = await dbfunc.getCategory(chatId);
+
+  for (let i = 0; i < catList.length; i++) {
+    array.push([
+      {
+        text: catList[i].category,
+        callback_data: catList[i].category,
+      },
+    ]);
+  }
+}
+
 async function setUserStatus(path, id, status) {
   const userConfig = await readConfigFile(path);
 
@@ -108,19 +121,20 @@ async function exam(msg) {
   );
 
   if (updateStatus) {
-    const list = await dbfunc.readItem({
+    const list = await dbfunc.readRandomItem({
       inputPsn: chatId,
       category: updateStatus.CAT,
     });
 
-    let retStr = `<b><u>문제출제 시작(총문제 ${list.length}개)</u></b>
-  출제되는 문항에 답을 쓰시고 메세지를 전송하면 다음 문제가 출제됩니다.`;
+    let retStr = texts.examExplaination.replace(/{{count}}/g, list.length);
 
     updateStatus.STATUS = constants.STATUS.IS_EXAMING;
     updateStatus.EXAM = list;
+    updateStatus.TTL_EXAM_COUNT = list.length;
 
     await writeConfigFile(getUserFilePath(chatId), updateStatus);
     bot.sendMessage(chatId, retStr, opts);
+
     issueExam(msg);
   } else {
     bot.sendMessage(chatId, texts.noAccount, opts);
@@ -144,13 +158,28 @@ async function issueExam(msg) {
   }
 
   if (updateStatus.EXAM.length == 0) {
-    bot.sendMessage(chatId, "시험이 종료되었습니다. 수고하셨습니다.", opts);
+    bot.sendMessage(
+      chatId,
+      `정답:${updateStatus.CURR_EXAM.desc}\r\n\r\n시험이 종료되었습니다. 수고하셨습니다.`,
+      opts
+    );
     await writeConfigFile(getUserFilePath(chatId), initUser());
   } else {
+    let msg = "";
+    if (updateStatus.CURR_EXAM_NUM != 0) {
+      msg = `문제${updateStatus.CURR_EXAM_NUM} 정답:${updateStatus.CURR_EXAM.desc}\r\n\r\n`;
+    }
+
     const curr = updateStatus.EXAM.shift();
+
+    updateStatus.CURR_EXAM = curr;
+    updateStatus.CURR_EXAM_NUM = updateStatus.CURR_EXAM_NUM + 1;
+
     await writeConfigFile(getUserFilePath(chatId), updateStatus);
 
-    bot.sendMessage(chatId, `문제:${curr.name}`, opts);
+    msg += `문제 ${updateStatus.CURR_EXAM_NUM}:${curr.name}`;
+
+    bot.sendMessage(chatId, msg, opts);
   }
 }
 
@@ -283,18 +312,8 @@ const telBot = () => {
       return;
     }
 
-    const catList = await dbfunc.getCategory(chatId);
-
     const btnArray = [[{ text: "새카테고리", callback_data: "newcategory" }]];
-
-    for (let i = 0; i < catList.length; i++) {
-      btnArray.push([
-        {
-          text: catList[i].category,
-          callback_data: catList[i].category,
-        },
-      ]);
-    }
+    await addCategoryList(chatId, btnArray);
 
     const opts = {
       parse_mode: "HTML",
@@ -319,17 +338,9 @@ const telBot = () => {
       return;
     }
 
-    const catList = await dbfunc.getCategory(chatId);
     let btnArray = [];
 
-    for (let i = 0; i < catList.length; i++) {
-      btnArray.push([
-        {
-          text: catList[i].category,
-          callback_data: catList[i].category,
-        },
-      ]);
-    }
+    await addCategoryList(chatId, btnArray);
 
     const opts = {
       parse_mode: "HTML",
@@ -368,17 +379,9 @@ const telBot = () => {
       return;
     }
 
-    const catList = await dbfunc.getCategory(chatId);
     let btnArray = [];
 
-    for (let i = 0; i < catList.length; i++) {
-      btnArray.push([
-        {
-          text: catList[i].category,
-          callback_data: catList[i].category,
-        },
-      ]);
-    }
+    await addCategoryList(chatId, btnArray);
 
     const opts = {
       parse_mode: "HTML",
@@ -437,18 +440,21 @@ const telBot = () => {
       bot.editMessageText("새 카테고리명을 입력하세요.\r\n ex)eng", opts);
     } else {
       if (userConfig.STATUS === constants.STATUS.SEL_CAT_FOR_INSERT) {
+        // 단어 등록
         userConfig.CAT = action;
         await writeConfigFile(getUserFilePath(chatId), userConfig);
 
         registerWord(msg);
         bot.editMessageText(`선택된 카테고리:${action}`, opts);
       } else if (userConfig.STATUS === constants.STATUS.SEL_CAT_FOR_SELECT) {
+        // 단어 조회
         userConfig.CAT = action;
         await writeConfigFile(getUserFilePath(chatId), userConfig);
 
         readWord(msg);
         bot.editMessageText(`선택된 카테고리:${action}`, opts);
       } else if (userConfig.STATUS === constants.STATUS.SEL_CAT_FOR_EXAM) {
+        // 랜덤 문제 출제
         userConfig.CAT = action;
         await writeConfigFile(getUserFilePath(chatId), userConfig);
 
