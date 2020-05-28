@@ -256,10 +256,21 @@ const telBot = () => {
         };
         await dbfunc.insertItem(item);
 
-        userConfig.STATUS = constants.STATUS.DEFAULT;
-        await writeConfigFile(getUserFilePath(chatId), userConfig);
+        const opts = {
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: "단어등록 종료",
+                  callback_data: "endInsertWord",
+                },
+              ],
+            ],
+          },
+        };
 
-        bot.sendMessage(chatId, texts.finishRegister);
+        bot.sendMessage(chatId, texts.finishRegister, opts);
       }
     } else if (userConfig.STATUS === constants.STATUS.IS_EXAMING) {
       // 시험문제 출제중
@@ -438,6 +449,11 @@ const telBot = () => {
       await writeConfigFile(getUserFilePath(chatId), userConfig);
 
       bot.editMessageText("새 카테고리명을 입력하세요.\r\n ex)eng", opts);
+    } else if (action === "endInsertWord") {
+      userConfig.STATUS = constants.STATUS.DEFAULT;
+      await writeConfigFile(getUserFilePath(chatId), userConfig);
+
+      bot.editMessageText("단어등록 기능이 종료되었습니다.", opts);
     } else {
       if (userConfig.STATUS === constants.STATUS.SEL_CAT_FOR_INSERT) {
         // 단어 등록

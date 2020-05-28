@@ -29,7 +29,7 @@ const texts = {
   ex)메신저-실시간으로 메시지와 데이터를 주고받을 수 있는 프로그램
   `,
   notFitFormat: `입력된 형태가 인식되지 않습니다. <b>단어-설명</b> 형태로 입력 되었는지 확인바랍니다.`,
-  finishRegister: `등록이 완료되었습니다.`,
+  finishRegister: `등록되었습니다. 단어등록 종료를 선택 하기 전까지 계속 입력 가능합니다.`,
   selectCategoryForSelect: `조회할 카테고리를 선택하세요.`,
   selectCategoryForExam: `문제를 출제할 카테고리를 선택하세요.`,
   selectCategoryForInsert: `<b><u>등록할 카테고리를 선택하세요</u></b>.
